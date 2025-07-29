@@ -1,35 +1,32 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 
+// A custom hook for managing state in localStorage.
+// It now correctly initializes state only once.
 export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
   
-  const [storedValue, setStoredValue] = useState<T>(initialValue);
-
-  useEffect(() => {
+  // This function is passed to useState and runs only on the initial render.
+  // This prevents re-reading from localStorage on every render.
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    if (typeof window === 'undefined') {
+      return initialValue;
+    }
     try {
-      if (typeof window !== 'undefined') {
-        const item = window.localStorage.getItem(key);
-        setStoredValue(item ? (JSON.parse(item) as T) : initialValue);
-      }
+      const item = window.localStorage.getItem(key);
+      return item ? (JSON.parse(item) as T) : initialValue;
     } catch (error) {
       console.warn(`Error reading localStorage key “${key}”:`, error);
-      setStoredValue(initialValue);
+      return initialValue;
     }
-  }, [initialValue, key]);
-
+  });
 
   const setValue = (value: T | ((val: T) => T)) => {
-    if (typeof window == 'undefined') {
-      console.warn(
-        `Tried setting localStorage key “${key}” even though environment is not a client`
-      );
-    }
-
     try {
       const valueToStore = value instanceof Function ? value(storedValue) : value;
       setStoredValue(valueToStore);
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(key, JSON.stringify(valueToStore));
+        // Dispatch a custom event to notify other tabs/windows of the change.
         window.dispatchEvent(new Event("local-storage"));
       }
     } catch (error) {
@@ -37,20 +34,21 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
     }
   };
 
-
   useEffect(() => {
+    // This effect listens for changes in localStorage from other tabs.
     const handleStorageChange = (event: StorageEvent | CustomEvent) => {
-      if ((event as StorageEvent).key && (event as StorageEvent).key !== key) {
+      // For 'storage' events, check if the key matches.
+      if (event instanceof StorageEvent && event.key !== key) {
         return;
       }
-      try {
-        if (typeof window !== 'undefined') {
-            const item = window.localStorage.getItem(key);
-            setStoredValue(item ? (JSON.parse(item) as T) : initialValue);
+
+      if (typeof window !== 'undefined') {
+        try {
+          const item = window.localStorage.getItem(key);
+          setStoredValue(item ? JSON.parse(item) : initialValue);
+        } catch (error) {
+          console.warn(`Error reading localStorage key “${key}” on change:`, error);
         }
-      } catch (error) {
-        console.warn(`Error reading localStorage key “${key}”:`, error);
-        setStoredValue(initialValue);
       }
     };
 
@@ -61,8 +59,9 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("local-storage", handleStorageChange);
     };
+    // Adding initialValue and key to dependency array to be thorough,
+    // although they are not expected to change.
   }, [key, initialValue]);
-
 
   return [storedValue, setValue];
 }
