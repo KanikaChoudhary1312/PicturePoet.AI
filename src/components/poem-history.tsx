@@ -14,38 +14,39 @@ interface PoemHistoryProps {
   onClear: () => void;
 }
 
-export function PoemHistory({ history, onSelect, onClear }: PoemHistoryProps) {
-  const historyContent = React.useMemo(() => {
-    if (history.length === 0) {
-      return (
-        <div className="text-center text-muted-foreground py-8">
-          <p>Your generated poems will appear here.</p>
-        </div>
-      );
+interface HistoryItemProps {
+    item: PoemHistoryItem;
+    onSelect: (item: PoemHistoryItem) => void;
+}
+
+const HistoryItem = React.memo(function HistoryItem({ item, onSelect }: HistoryItemProps) {
+    const handleSelect = () => onSelect(item);
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            onSelect(item);
+        }
     }
+    
     return (
-      <div className="space-y-4">
-        {history.map((item) => (
-          <div
-            key={item.id}
+        <div
             className="flex items-center gap-4 p-2 rounded-lg hover:bg-secondary cursor-pointer"
-            onClick={() => onSelect(item)}
+            onClick={handleSelect}
+            onKeyDown={handleKeyDown}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && onSelect(item)}
-          >
+        >
             <div className="relative w-16 h-16 flex-shrink-0 overflow-hidden rounded-md border">
               <Image src={item.image} alt="Poem history item" layout="fill" objectFit="cover" />
             </div>
             <p className="text-sm text-muted-foreground truncate font-headline">
               {item.poem.split('\n')[0]}
             </p>
-          </div>
-        ))}
-      </div>
+        </div>
     );
-  }, [history, onSelect]);
+});
 
+
+export function PoemHistory({ history, onSelect, onClear }: PoemHistoryProps) {
   return (
     <Card className="shadow-lg flex-1 flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between">
@@ -63,7 +64,17 @@ export function PoemHistory({ history, onSelect, onClear }: PoemHistoryProps) {
       <CardContent className="flex-1 flex flex-col min-h-0">
         <ScrollArea className="flex-1 -mx-6">
             <div className="px-6">
-                {historyContent}
+                {history.length === 0 ? (
+                     <div className="text-center text-muted-foreground py-8">
+                        <p>Your generated poems will appear here.</p>
+                     </div>
+                ) : (
+                    <div className="space-y-4">
+                        {history.map((item) => (
+                            <HistoryItem key={item.id} item={item} onSelect={onSelect} />
+                        ))}
+                    </div>
+                )}
             </div>
         </ScrollArea>
       </CardContent>
