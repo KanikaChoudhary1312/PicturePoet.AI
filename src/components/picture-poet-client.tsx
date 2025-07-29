@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocalStorage } from '@/hooks/use-local-storage';
@@ -51,18 +51,18 @@ export function PicturePoetClient() {
     }
   };
 
-  const handleSelectFromHistory = (item: PoemHistoryItem) => {
+  const handleSelectFromHistory = useCallback((item: PoemHistoryItem) => {
     setActiveImage(item.image);
     setActivePoem(item.poem);
-  };
+  }, []);
   
-  const handleClearHistory = () => {
+  const handleClearHistory = useCallback(() => {
     setHistory([]);
     toast({
         title: "History Cleared",
         description: "Your poem history has been successfully cleared.",
     });
-  }
+  }, [setHistory, toast]);
 
   return (
     <div className="min-h-screen flex flex-col p-4 md:p-8">
